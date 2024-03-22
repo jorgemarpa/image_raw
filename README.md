@@ -12,3 +12,7 @@ It uses ffmpeg-python to make time-lapse videso from a set of images.
 * **Rotation Alignment** fing the best agle that minimizes resiuals in an image and applies the transformation.
 * **FFT phase correlation** finds the best tranlation in the FFT space.
 
+## Examples
+
+Hougs Transform to find the Sun Disk and make stamps from my 2023 Annular solar eclipse images.
+![Sun Eclipse](https://github.com/jorgemarpa/image_raw/tree/main/data/Hougs_transform_ex.png.jpg)
