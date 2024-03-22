@@ -16,4 +16,5 @@ It uses ffmpeg-python to make time-lapse videso from a set of images.
 
 Hougs Transform to find the Sun Disk and make stamps from my 2023 Annular solar eclipse images.
 
-![Sun Eclipse](https://github.com/jorgemarpa/image_raw/tree/main/data/Hougs_transform_ex.png)
+<!-- ![Sun Eclipse](https://github.com/jorgemarpa/image_raw/tree/main/data/Hougs_transform_ex.png) -->
+![Sun Eclipse](data/Hougs_transform_ex.png)
