@@ -1,76 +1,77 @@
 #!/usr/bin/env python
 
 # Import necessary libraries.
-import os, argparse
+import argparse
 import cv2
 import numpy as np
-from numpy.fft import fft2, ifft2, fftshift
+from numpy.fft import fft2, ifft2
+
 
 # argument parser
 def getArgs():
-
-   parser = argparse.ArgumentParser(
-    description = '''Demo script showing various image alignment methods
+    parser = argparse.ArgumentParser(
+        description="""Demo script showing various image alignment methods
                      including, phase correlation, feature based matching
-                     and whole image based optimization.''',
-    epilog = '''post bug reports to the github repository''')
-    
-   parser.add_argument('-im1',
-                       '--image_1',
-                       help = 'image to reference',
-                       required = True)
-                       
-   parser.add_argument('-im2',
-                       '--image_2',
-                       help = 'image to match',
-                       required = True)
+                     and whole image based optimization.""",
+        epilog="""post bug reports to the github repository""",
+    )
 
-   parser.add_argument('-m',
-                       '--mode',
-                       help = 'registation mode: translation, ecc or feature',
-                       default = 'feature')
+    parser.add_argument("-im1", "--image_1", help="image to reference", required=True)
 
-   parser.add_argument('-mf',
-                       '--max_features',
-                       help = 'maximum number of features to consider',
-                       default = 5000)
+    parser.add_argument("-im2", "--image_2", help="image to match", required=True)
 
-   parser.add_argument('-fr',
-                       '--feature_retention',
-                       help = 'fraction of features to retain',
-                       default = 0.15)
+    parser.add_argument(
+        "-m",
+        "--mode",
+        help="registation mode: translation, ecc or feature",
+        default="feature",
+    )
 
-   parser.add_argument('-i',
-                       '--iterations',
-                       help = 'number of ecc iterations',
-                       default = 5000)
+    parser.add_argument(
+        "-mf",
+        "--max_features",
+        help="maximum number of features to consider",
+        default=5000,
+    )
 
-   parser.add_argument('-te',
-                       '--termination_eps',
-                       help = 'ecc termination value',
-                       default = 1e-8)
+    parser.add_argument(
+        "-fr",
+        "--feature_retention",
+        help="fraction of features to retain",
+        default=0.15,
+    )
 
-   return parser.parse_args()
+    parser.add_argument(
+        "-i", "--iterations", help="number of ecc iterations", default=5000
+    )
+
+    parser.add_argument(
+        "-te", "--termination_eps", help="ecc termination value", default=1e-8
+    )
+
+    return parser.parse_args()
+
 
 def rotationAlign(im1, im2):
-
     # Convert images to grayscale
-    im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY)
-    im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY)
+    im1_gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
+    im2_gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
     height, width = im1_gray.shape[0:2]
-    
+
     values = np.ones(360)
-    
-    for i in range(0,360):
-      rotationMatrix = cv2.getRotationMatrix2D((width/2, height/2), i, 1)
-      rot = cv2.warpAffine(im2_red, rotationMatrix, (width, height))
-      values[i] = np.mean(im1_gray - rot)
-    
-    rotationMatrix = cv2.getRotationMatrix2D((width/2, height/2), np.argmin(values), 1)
+
+    for i in range(0, 360):
+        rotationMatrix = cv2.getRotationMatrix2D((width / 2, height / 2), i, 1)
+        rot = cv2.warpAffine(im2_gray, rotationMatrix, (width, height))
+        values[i] = np.mean(im1_gray - rot)
+
+    rotationMatrix = cv2.getRotationMatrix2D(
+        (width / 2, height / 2), np.argmin(values), 1
+    )
     rotated = cv2.warpAffine(im2, rotationMatrix, (width, height))
-    
+
     return rotated, rotationMatrix
-      
+
 
 # Enhanced Correlation Coefficient (ECC) Maximization
 def eccAlign(
@@ -80,37 +81,52 @@ def eccAlign(
     termination_eps=1e-8,
     warp_mode=cv2.MOTION_EUCLIDEAN,
 ):
-
     # Convert images to grayscale
-    im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY)
-    im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY)
+    im1_gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
+    im2_gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
 
     # Find size of image1
     sz = im1.shape
-    
+
     # Define 2x3 or 3x3 matrices and initialize the matrix to identity
-    if warp_mode == cv2.MOTION_HOMOGRAPHY :
+    if warp_mode == cv2.MOTION_HOMOGRAPHY:
         warp_matrix = np.eye(3, 3, dtype=np.float32)
-    else :
+    else:
         warp_matrix = np.eye(2, 3, dtype=np.float32)
 
     # Define termination criteria
-    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
-     number_of_iterations,  termination_eps)
+    criteria = (
+        cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
+        number_of_iterations,
+        termination_eps,
+    )
 
     # Run the ECC algorithm. The results are stored in warp_matrix.
-    (cc, warp_matrix) = cv2.findTransformECC (im2_gray, im1_gray, warp_matrix, warp_mode, criteria)
+    (cc, warp_matrix) = cv2.findTransformECC(
+        im2_gray, im1_gray, warp_matrix, warp_mode, criteria
+    )
 
-    if warp_mode == cv2.MOTION_HOMOGRAPHY :
-        # Use warpPerspective for Homography 
-        im1_aligned = cv2.warpPerspective (im1, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
-    else :
+    if warp_mode == cv2.MOTION_HOMOGRAPHY:
+        # Use warpPerspective for Homography
+        im1_aligned = cv2.warpPerspective(
+            im1,
+            warp_matrix,
+            (sz[1], sz[0]),
+            flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP,
+        )
+    else:
         # Use warpAffine for Translation, Euclidean and Affine
-        im1_aligned = cv2.warpAffine(im1, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP);
+        im1_aligned = cv2.warpAffine(
+            im1,
+            warp_matrix,
+            (sz[1], sz[0]),
+            flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP,
+        )
 
     return im1_aligned, warp_matrix
 
-# (ORB) feature based alignment      
+
+# (ORB) feature based alignment
 def featureAlign(im1, im2, max_features=5000, feature_retention=0.15, debug=False):
     # Convert images to grayscale
     im1Gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
@@ -156,15 +172,15 @@ def featureAlign(im1, im2, max_features=5000, feature_retention=0.15, debug=Fals
     print(im1.shape, im2.shape)
     im1Reg = cv2.warpPerspective(im1, h, (width, height))
 
-    return im1Reg, h      
+    return im1Reg, h
+
 
 # FFT phase correlation
 def translation(im0, im1):
-    
     # Convert images to grayscale
-    im0 = cv2.cvtColor(im0,cv2.COLOR_BGR2GRAY)
-    im1 = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY)
-    
+    im0 = cv2.cvtColor(im0, cv2.COLOR_BGR2GRAY)
+    im1 = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
+
     shape = im0.shape
     f0 = fft2(im0)
     f1 = fft2(im1)
@@ -175,47 +191,41 @@ def translation(im0, im1):
     if t1 > shape[1] // 2:
         t1 -= shape[1]
     return [t0, t1]
-      
-if __name__ == '__main__':
-    
-  # parse arguments
-  args = getArgs()
-    
-  # defaults feature values
-  max_features = args.max_features
-  feature_retention = args.feature_retention
-  
-  # Specify the ECC number of iterations.
-  number_of_iterations = args.iterations
 
-  # Specify the ECC threshold of the increment
-  # in the correlation coefficient between two iterations
-  termination_eps = args.termination_eps
 
-  # Read the images to be aligned
-  im1 =  cv2.imread(args.image_1);
-  im2 =  cv2.imread(args.image_2);
+if __name__ == "__main__":
+    # parse arguments
+    args = getArgs()
 
-  # Switch between alignment modes
-  if args.mode == "feature":
-   # align and write to disk
-   aligned, warp_matrix = featureAlign(im1, im2)
-   cv2.imwrite("reg_image.jpg",
-    aligned,
-    [cv2.IMWRITE_JPEG_QUALITY, 90])
-   print(warp_matrix)
-  elif args.mode == "ecc":
-   aligned, warp_matrix = eccAlign(im1, im2)
-   cv2.imwrite("reg_image.jpg",
-    aligned,
-    [cv2.IMWRITE_JPEG_QUALITY, 90])
-   print(warp_matrix)
-  elif args.mode == "rotation":
-   rotated, rotationMatrix = rotationAlign(im1, im2)
-   cv2.imwrite("reg_image.jpg",
-    rotated,
-    [cv2.IMWRITE_JPEG_QUALITY, 90])
-   print(rotationMatrix)
-  else:
-   warp_matrix = translation(im1, im2)
-   print(warp_matrix)
+    # defaults feature values
+    max_features = args.max_features
+    feature_retention = args.feature_retention
+
+    # Specify the ECC number of iterations.
+    number_of_iterations = args.iterations
+
+    # Specify the ECC threshold of the increment
+    # in the correlation coefficient between two iterations
+    termination_eps = args.termination_eps
+
+    # Read the images to be aligned
+    im1 = cv2.imread(args.image_1)
+    im2 = cv2.imread(args.image_2)
+
+    # Switch between alignment modes
+    if args.mode == "feature":
+        # align and write to disk
+        aligned, warp_matrix = featureAlign(im1, im2)
+        cv2.imwrite("reg_image.jpg", aligned, [cv2.IMWRITE_JPEG_QUALITY, 90])
+        print(warp_matrix)
+    elif args.mode == "ecc":
+        aligned, warp_matrix = eccAlign(im1, im2)
+        cv2.imwrite("reg_image.jpg", aligned, [cv2.IMWRITE_JPEG_QUALITY, 90])
+        print(warp_matrix)
+    elif args.mode == "rotation":
+        rotated, rotationMatrix = rotationAlign(im1, im2)
+        cv2.imwrite("reg_image.jpg", rotated, [cv2.IMWRITE_JPEG_QUALITY, 90])
+        print(rotationMatrix)
+    else:
+        warp_matrix = translation(im1, im2)
+        print(warp_matrix)
